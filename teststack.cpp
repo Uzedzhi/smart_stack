@@ -28,41 +28,9 @@ int main() {
     stackDtor(stk);
 
     puts(BYELLOW "test 1 done" WHITE);
-
     }
     {
-    puts(MAGENTA "second test: 2 push 3 pop" WHITE);
-    init_stack(stk, int, 5);
-
-    int num = 10;
-    puts("push 10");
-    stackPush(stk, &num);
-
-    puts("push 20");
-    num = 20;
-    stackPush(stk, &num);
-    
-    int out = 0;
-
-    printf("pop 1: ");
-    stackPop(stk, &out);
-    printf("%d\n", out);
-
-    printf("pop 2: ");
-    stackPop(stk, &out);
-    printf("%d\n", out);
-
-    printf("pop 3: ");
-    stackPop(stk, &out);
-    printf("%d\n", out);
-
-    stackDtor(stk);
-
-    puts(BYELLOW "test 2 done" WHITE);
-
-    }
-    {
-    puts(MAGENTA "third test: 5 push, initial capacity 1" WHITE);
+    puts(MAGENTA "second test: 5 push, initial capacity 1" WHITE);
     init_stack(stk, int, 1);
 
     int num = 10;
@@ -109,11 +77,41 @@ int main() {
 
     stackDtor(stk);
 
+    puts(BYELLOW "test 2 done" WHITE);
     }
+    {
+    puts(MAGENTA "third test: 2 push 3 pop" WHITE);
+    init_stack(stk, int, 5);
+
+    int num = 10;
+    puts("push 10");
+    stackPush(stk, &num);
+
+    puts("push 20");
+    num = 20;
+    stackPush(stk, &num);
+    
+    int out = 0;
+
+    printf("pop 1: ");
+    stackPop(stk, &out);
+    printf("%d\n", out);
+
+    printf("pop 2: ");
+    stackPop(stk, &out);
+    printf("%d\n", out);
+
+    printf("pop 3: ");
+    stackPop(stk, &out);
+    printf("%d\n", out);
+
+    stackDtor(stk);
+
     puts(BYELLOW "test 3 done" WHITE);
 
+    }
     {
-    puts(MAGENTA "fourth test: 2 pop 2 push but NULLIFY in stack" WHITE);
+    puts(MAGENTA "fourth test: 2 pop 2 push but NULLIFY stack" WHITE);
     init_stack(stk, int, 5);
 
     int num = 10;
@@ -138,17 +136,15 @@ int main() {
 
     puts(BYELLOW "test 4 done" WHITE);
     }
-
-    puts(BYELLOW "test 4 done" WHITE);
-
     {
-    puts(MAGENTA "fifth test: 2 pop 2 push but NULLIFY stack" WHITE);
+    puts(MAGENTA "fifth test: 2 pop 2 push but change smth in stack" WHITE);
     init_stack(stk, int, 5);
 
     int num = 10;
     puts("push 10");
     stackPush(stk, &num);
 
+    *((char *) stk + 32) = 98;
     puts("push 20");
     num = 20;
     stackPush(stk, &num);
@@ -165,7 +161,7 @@ int main() {
     stackPop(stk, &out);
     printf("%d\n", out);
 
-    puts(BYELLOW "test 4 done" WHITE);
+    puts(BYELLOW "test 5 done" WHITE);
     }
     return 0;
 }

@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <cstdint>
 
 #include "stack.h"
 
 static int count = 1;
 static size_t * ptr_start = NULL;
 static size_t * ptr_end = NULL;
-
 
 struct stack_t {
     const char * func_name;
@@ -38,13 +38,11 @@ stack_t * create_stack(size_t var_bytes, string var_name, size_t buffer_size,
     sassert(stk != NULL, ERR_PTR_NULL);
 
     stk->func_name = func_name;
-    stk->file_name =  file_name;
-    stk->var_name =  var_name;
-    stk->line =  line;
+    stk->file_name = file_name;
+    stk->var_name  = var_name;
+    stk->line      = line;
 
-    stk->total_bytes = buffer_size * var_bytes + 2 * sizeof(size_t);
-    if (check_if_overflow(buffer_size * var_bytes, 2 * sizeof(size_t)))
-        push_error(ERR_OVERFLOW, "realloc didnt make it... overflow with %zu bytes", stk->total_bytes);
+    get_total_bytes(stk, buffer_size * var_bytes, 2 * sizeof(size_t));
     stk->stack = (void *)((char *)calloc(stk->total_bytes, sizeof(char)) + sizeof(size_t));
     sassert(stk != NULL, ERR_PTR_NULL);
     
@@ -52,20 +50,17 @@ stack_t * create_stack(size_t var_bytes, string var_name, size_t buffer_size,
     stk->capacity =  buffer_size;
     stk->size     =  0;
 
-    stk->raw = (void *)((char *) stk->stack - sizeof(size_t));
+    stk->raw  = (void *)((char *) stk->stack - sizeof(size_t));
     memcpy(stk->raw, &CANAREIKA, sizeof(size_t));
     memcpy(get_stack_offset(stk, stk->capacity), &CANAREIKA, sizeof(size_t));
     stk->hash = get_stack_hash(*stk);
     ptr_start = (size_t *) stk;
-    ptr_end = (size_t *) stk + sizeof(stack_t);
+    ptr_end   = (size_t *) stk + sizeof(stack_t);
     return stk;
 }
 
 bool check_if_overflow(size_t first, size_t second) {
-    size_t ov = first + second;
-    if (ov - first != second)
-        return 1;
-    return 0;
+    return first > 0 && second > SIZE_MAX - first;
 }
 
 void print_whole_var_info(stack_t *stack) {
@@ -121,60 +116,48 @@ void print_bytes_left_canareika(stack_t *stack, size_t * LEFT_canareika_location
     }
 }
 
-void stackDump(stack_t *stack, size_t sizeof_value, bool errors[],
+bool is_error_active(int errors, stackErr_t error) {
+    return (errors & error) == error;
+}
+
+void stackDump(stack_t *stack, size_t sizeof_value, int errors,
                const char * file_name, const char * func_name, size_t line) {
     sassert(stack,     ERR_PTR_NULL);
-    sassert(errors,    ERR_PTR_NULL);
     sassert(file_name, ERR_PTR_NULL);
     sassert(func_name, ERR_PTR_NULL);
-    sassert(errors[ERR_PTR_NULL] != 1, ERR_PTR_NULL);
+    sassert(is_error_active(errors, ERR_PTR_NULL) == 0, ERR_PTR_NULL);
         
-
     size_t otstyp = strlen_format_string / 2;
-    
+
     printf(RED "%sSTART DUMP%s" WHITE " (count=%d)\n", format_string, format_string, count++);
     print_with_otstyp(otstyp, "reasons : "); print_all_reasons(errors);
     print_with_otstyp(otstyp, "var stack      | <%s>\n",                stack->var_name);
     print_with_otstyp(otstyp, "HEX stack      | <%p>\n",                stack->stack);
     print_with_otstyp(otstyp, "your type bytes| <%zu> ",                sizeof_value); 
-    (errors[ERR_DIFFERENT_TYPE] == 1) ? printf(RED "<-needed %zu bytes %s\n" WHITE, stack->var_size, bad) : printf("\n");
+    (is_error_active(errors, ERR_DIFFERENT_TYPE)) ? printf(RED "<-needed %zu bytes %s\n" WHITE, stack->var_size, bad) : printf("\n");
     print_with_otstyp(otstyp, "init where     | <%s; %s:%zu>\n",        stack->file_name, stack->func_name, stack->line);
     print_with_otstyp(otstyp, "dump where     | <%s; %s:%zu>\n",        file_name, func_name, line);
-    print_with_otstyp(otstyp, "var size       | <%zu> " RED "%s\n" WHITE, stack->size, (errors[ERR_SIZE_INVALID] == 1) ? bad : "\n");
-    print_with_otstyp(otstyp, "var capacity   | <%zu> " RED "%s\n" WHITE, stack->capacity, (errors[ERR_CAPACITY_INVALID] == 1) ? bad : "\n");
+    print_with_otstyp(otstyp, "var size       | <%zu> " RED "%s\n" WHITE, stack->size, (is_error_active(errors, ERR_SIZE_INVALID)) ? bad : "\n");
+    print_with_otstyp(otstyp, "var capacity   | <%zu> " RED "%s\n" WHITE, stack->capacity, (is_error_active(errors, ERR_CAPACITY_INVALID)) ? bad : "\n");
     print_with_otstyp(otstyp, "var (%d bytes) values {\n", (int)(stack->var_size * stack->capacity));
 
     BEGIN
-    if (errors[ERR_STACK_NULL] == 1)
+    if (is_error_active(errors, ERR_STACK_NULL))
         break;
 
-    size_t * LEFT_canareika_location  = (size_t *)stack->raw;
-    size_t * RIGHT_canareika_location = (size_t *) get_stack_offset(stack, stack->capacity);
-    size_t   LEFT_canareika_value;
-    size_t   RIGHT_canareika_value;
-    memcpy(&LEFT_canareika_value,  LEFT_canareika_location,  sizeof(size_t));
-    memcpy(&RIGHT_canareika_value, RIGHT_canareika_location, sizeof(size_t));
-
+    init_canareika_values(stack);
     print_canareika(stack, errors, LEFT, LEFT_canareika_value);
-
-    if (errors[ERR_SIZE_INVALID] == 1) {
+    if (is_error_active(errors, ERR_SIZE_INVALID)) {
         print_part_of_var_info(stack, 0, min(stack->capacity, MAX_PRINT_ROWS), 0);
         print_with_otstyp(otstyp + 24, "...\n");
     } else
         print_whole_var_info(stack);
-    
     print_canareika(stack, errors, RIGHT, RIGHT_canareika_value);
 
     print_with_otstyp(otstyp, "   };\n");
     print_with_otstyp(otstyp, "}\n");
 
-    if (errors[ERR_STACK_NULL] == 0) {
-        printf(BLACK "canareika left -> " BYELLOW);
-        print_bytes_left_canareika(stack, LEFT_canareika_location);
-        printf("\n                  ");
-        print_bytes_right_canareika(stack, RIGHT_canareika_location);
-        printf(BLACK " <- canareika right" WHITE);
-    }
+    print_canareika_bytes(stack, LEFT_canareika_location, RIGHT_canareika_location);
     END
 
     printf(RED "\n%sENDING DUMP%s\n\n" WHITE, format_string, format_string);
@@ -183,9 +166,7 @@ void stackDump(stack_t *stack, size_t sizeof_value, bool errors[],
 void reallocate_stack(stack_t *stack, size_t new_capacity){
     sassert(stack != NULL, ERR_PTR_NULL);
 
-    stack->total_bytes = (stack->capacity * stack->var_size) * 2 + 2 * sizeof(size_t);
-    if (check_if_overflow((stack->capacity * stack->var_size), (stack->capacity * stack->var_size) + 2 * sizeof(size_t)))
-        push_error(ERR_OVERFLOW, "realloc didnt make it... overflow with %zu bytes", stack->total_bytes);
+    get_total_bytes(stack, (stack->capacity * stack->var_size) * 2, 2 * sizeof(size_t));
 
     memcpy(get_stack_offset(stack, stack->capacity), &NUL_CANAREIKA, sizeof(size_t));
     void * temp_stack = realloc(stack->raw, stack->total_bytes);
@@ -195,15 +176,14 @@ void reallocate_stack(stack_t *stack, size_t new_capacity){
     stack->raw = temp_stack;
     stack->capacity = new_capacity;
 
-    memcpy((char *)get_stack_offset(stack, stack->capacity), &CANAREIKA, sizeof(size_t));
+    memcpy(get_stack_offset(stack, stack->capacity), &CANAREIKA, sizeof(size_t));
 }
 
-void print_all_reasons(bool errors[]) {
-    sassert(errors, ERR_PTR_NULL);
-
+void print_all_reasons(int errors) {
     for (size_t i = 0; i < num_of_errors; i++) {
-        if (errors[i] == 1) 
-            printf("<%s> ", err_strings[i]);
+        if ((errors & 1) == 1)
+            printf("<%s> ", err_strings[i + 1]);
+        errors>>=1;
     }
     putchar('\n');
 }
@@ -214,8 +194,8 @@ void * get_stack_offset(stack_t *stack, size_t i) {
     return (char*)stack->stack + i * stack->var_size;
 }
 
-stackErr_t stackPush_internal(stack_t *stack, size_t sizeof_value,
-                              void * value, const char * file_name, const char * func_name, size_t line) {
+int stackPush_internal(stack_t *stack, size_t sizeof_value,
+                       void * value, const char * file_name, const char * func_name, size_t line) {
     sassert(stack,     ERR_PTR_NULL);
     sassert(value,     ERR_PTR_NULL);
     sassert(file_name, ERR_PTR_NULL);
@@ -233,8 +213,8 @@ stackErr_t stackPush_internal(stack_t *stack, size_t sizeof_value,
     return NO_ERROR;
 }
 
-stackErr_t stackPop_internal(stack_t *stack, size_t sizeof_value,
-                             void * value, const char * file_name, const char * func_name, size_t line) {
+int stackPop_internal(stack_t *stack, size_t sizeof_value,
+                      void * value, const char * file_name, const char * func_name, size_t line) {
     sassert(stack,     ERR_PTR_NULL);
     sassert(value,     ERR_PTR_NULL);
     sassert(file_name, ERR_PTR_NULL);
@@ -256,7 +236,6 @@ size_t mod_pow(size_t base, size_t exp, size_t mod) {
         base = (base * base) % mod;
         exp /= 2;
     }
-    
     return result;
 }
 
@@ -286,38 +265,27 @@ stackErr_t stackDtor2_internal(stack_t **stack) {
     return NO_ERROR;
 }
 
-void stackErrcheck(stack_t *stack, size_t sizeof_value, bool is_pt, bool errors[]) {
-    sassert(stack, ERR_PTR_NULL);
-    sassert(errors, ERR_PTR_NULL);
-
+int stackErrcheck(stack_t *stack, size_t sizeof_value, bool is_pt) {
+    int errors = 0;
     BEGIN
     if (stack->stack == NULL || stack->raw == NULL) {
-        errors[ERR_STACK_NULL] = 1;
+        errors |= ERR_PTR_NULL;
         break;
     }
     if (sizeof_value != stack->var_size)
-        errors[ERR_DIFFERENT_TYPE] = 1;
+        errors |= ERR_DIFFERENT_TYPE;
 
-    if (get_stack_hash(*stack) != stack->hash)
-        sassert(0, ERR_HASH_CHANGED, "FATAL ERROR, cant progress");
+    check_if_hash_correct(stack);
 
-    size_t left_canareika;
-    memcpy(&left_canareika, stack->raw, sizeof(size_t));
-    size_t right_canareika;
-    memcpy(&right_canareika, get_stack_offset(stack, stack->capacity), sizeof(size_t));
-    
-
-    if (left_canareika  != CANAREIKA)
-        errors[ERR_CANAREIKA_LEFT_CHANGE]  = 1;
-    if (right_canareika != CANAREIKA)
-        errors[ERR_CANAREIKA_RIGHT_CHANGE] = 1;
+    check_if_canareika_correct(stack);
     if (stack->capacity > MAX_CAPACITY)
-        errors[ERR_CAPACITY_INVALID] = 1;
+        errors |= ERR_CAPACITY_INVALID;
     if (stack->size > stack->capacity)
-        errors[ERR_SIZE_INVALID] = 1;
+        errors |= ERR_SIZE_INVALID;
     if (is_pt == 1 && stack->size - 1 > stack->capacity) {
-        errors[ERR_SIZE_INVALID] = 1;
+        errors |= ERR_SIZE_INVALID;
         stack->size--;
     }
     END
+    return errors;
 }
