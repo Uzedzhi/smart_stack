@@ -98,9 +98,9 @@ string bad = "MEOW!!!";
 #define check_if_canareika_correct(stack)\
     stack_var_t left_canareika = *stack->raw;\
     stack_var_t right_canareika = stack->stack[stack->capacity];\
-    if (left_canareika  != (stack_var_t) CANAREIKA)\
+    if (!is_same(left_canareika, (stack_var_t) CANAREIKA))\
         errors |= 1 << ERR_CANAREIKA_LEFT_CHANGE;\
-    if (right_canareika != (stack_var_t) CANAREIKA)\
+    if (!is_same(right_canareika, (stack_var_t) CANAREIKA))\
         errors |= 1 << ERR_CANAREIKA_RIGHT_CHANGE;
 #else
 #define check_if_canareika_correct(stack) ;
@@ -160,6 +160,7 @@ int stackErrcheck(stack_t *stack, bool is_pt);
 int stackPush_internal(stack_t *stack, stack_var_t value,
                               const char * file_name, const char * func_name, size_t line);
 int stackPop_internal(stack_t *stack, stack_var_t * value, const char * file_name, const char * func_name, size_t line);
+int get_num_of_reg(const char * reg);
 stackErr_t stackDtor_internal(stack_t *stack);
 stackErr_t stackDtor2_internal(stack_t **stack);
 void print_all_reasons(int errors);
@@ -172,5 +173,6 @@ void stackDump(stack_t *stack, int errors,
 void reallocate_stack(stack_t*, double);
 bool check_if_overflow(size_t first, size_t second);
 bool is_error_active(int errors, stackErr_t error);
+bool inline is_same(double a, double b);
 
 #endif // mylib.h

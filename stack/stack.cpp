@@ -91,12 +91,12 @@ void print_part_of_var_info(stack_t *stack, size_t start, size_t end, size_t is_
     size_t otstyp = strlen_format_string / 2;
     char occupied_symbol = (is_occupied) ? '*' : ' ';
     for (size_t i = start; i < end; i++) {
-        print_with_otstyp(otstyp, "    %c[%zu] = %lf", occupied_symbol, i, stack->stack[i]);
+        print_with_otstyp(otstyp, "    %c[%zu] = %lf ", occupied_symbol, i, stack->stack[i]);
         for (size_t j = 0; j < stack->var_size; j++) {
-            printf(" [%d]", *((char *)(stack->stack + i) + j));
+            printf("[%02X]", *((unsigned char *)(stack->stack + i) + j));
         }
         printf(" %p", stack->stack + i);
-        if (stack->stack[i] == (stack_var_t) POISON)
+        if (is_same(stack->stack[i], (stack_var_t) POISON))
             printf(MAGENTA " [POISON]" WHITE);
         putchar('\n');
     }     
@@ -109,7 +109,7 @@ void print_bytes_right_canareika(stack_t *stack) {
         if (i == 2 * sizeof(stack_var_t)) {
             printf(" | " BYELLOW);
         }
-        printf("[%d]", *((char *)(stack->stack + stack->capacity - 2) + i));
+        printf("[%02X]", *((unsigned char *)(stack->stack + stack->capacity - 2) + i));
     }
 }
 
@@ -120,8 +120,12 @@ void print_bytes_left_canareika(stack_t *stack) {
         if (i == sizeof(stack_var_t)) {
             printf(WHITE  " | ");
         }
-        printf("[%d]", *((char *) stack->raw + i));
+        printf("[%02X]", *((unsigned char *) stack->raw + i));
     }
+}
+
+bool inline is_same(double a, double b) {
+    return (abs(a - b) < FLT_ERR);
 }
 
 bool is_error_active(int errors, stackErr_t error) {

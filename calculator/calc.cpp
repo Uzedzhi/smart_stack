@@ -2,12 +2,14 @@
 #include "calc.h"
 #include <math.h>
 
-static string all_flags = "ceo";
-static string all_commands[] = {"PUSH", "POP", "ADD", "SUB", "MUL", "QROOT", "DIV", "OUT", "HLT", "DUMP"};
-static string error_text[] = {"file you try to open does not exist", "flag is invalid", "command is incorrect"};
-const static size_t num_of_errors = sizeof(error_text) / sizeof(string);
-const static size_t num_of_flags = strlen(all_flags);
+static string all_flags      = "ceo";
+static string all_commands[] = {"PUSH", "POP", "ADD", "SUB", "MUL", "QROOT", "DIV", "OUT", "HLT", "DUMP", "PUSHR", "POPR"};
+static string error_text[]   = {"file you try to open does not exist", "flag is invalid", "command is incorrect"};
+const static size_t num_of_errors   = sizeof(error_text) / sizeof(string);
+const static size_t num_of_flags    = strlen(all_flags);
 const static size_t num_of_commands = sizeof(all_commands) / sizeof(string);
+static stack_var_t regs[8] = {};
+static string reg_names[8] = {"RAX", "RBX", "RCX", "RDX", "REX", "RFX", "RGX", "RTX"};
 
 enum flags {
     COMPILE, EXECUTE, WHERE
@@ -50,6 +52,15 @@ void do_div(stack_t *stack) {
 void do_dump(stack_t *stack) {
     stackDump(stack, 0, "calc.cpp", "do_dump", 0);
 }
+
+void do_pushr(stack_t *stack, int num_of_reg) {
+    stackPush(stack, regs[num_of_reg]);
+}
+
+void do_popr(stack_t *stack,  int num_of_reg) {
+    stackPop(stack, &(regs[num_of_reg]));
+}
+
 void do_mul(stack_t *stack) {
     stack_var_t a = 0, b = 0;
     stackPop(stack, &a);
@@ -59,8 +70,7 @@ void do_mul(stack_t *stack) {
 void do_out(stack_t *stack) {
     stack_var_t a = 0;
     stackPop(stack, &a);
-    stackPush(stack, a);
-    printf("-----------------%lf--------------------\n", a);
+    printf("=================%lf=================\n", a);
 }
 
 void do_qroot(stack_t *stack) {
@@ -74,7 +84,7 @@ void do_qroot(stack_t *stack) {
     if (D > 0) {
         stackPush(stack, (-b + sqrt(D)) / (2 * a));
         stackPush(stack, (-b - sqrt(D)) / (2 * a));
-    } else if (D == 0) {
+    } else if (is_same(D, 0)) {
         stackPush(stack, -b / (2 * a));
     } else {
         stackPush(stack, 0);
@@ -170,6 +180,17 @@ calcInst_t get_num_of_command(const char * command) {
     return UNDEF;
 }
 
+int get_num_of_reg(const char * reg) {
+    sassert(reg, ERR_PTR_NULL);
+
+    for (size_t i = 0; i < sizeof(all_commands) / sizeof(string); i++) {
+        if (strcmp(reg, reg_names[i]) == 0) {
+            return (int) i;
+        }
+    }
+    return 0;
+}
+
 size_t get_file_size(FILE * fp) {
     sassert(fp, ERR_PTR_NULL);
 
@@ -180,9 +201,11 @@ size_t get_file_size(FILE * fp) {
     return file_size;
 }
 
-bool inline expects_arg(calcInst_t command) {
-    if (command == PUSH) return true;
-    return false;
+inline type_of_arg expects_arg(calcInst_t command) {
+    if (command == PUSH)  return ONE;
+    if (command == PUSHR) return REG;
+    if (command  == POPR) return REG;
+    return NONE;
 }
 
 bool is_in_array(const char * command, size_t size) {
@@ -238,10 +261,15 @@ calcErr_s compile_file(char * user_file_compile, char * user_file_where) {
             add_error(ERR_INCORRECT_COMMAND, "command is undefined");
             break;
         }
-        if (expects_arg(cur_line.num_of_command)) {
+
+        type_of_arg type_of_arg = expects_arg(cur_line.num_of_command);
+        if (type_of_arg == ONE) {
             token_buffer = strtok(NULL, " \t\n\r");
             cur_line.value = atof(token_buffer);
-        } else 
+        } else if (type_of_arg == REG) {
+            token_buffer = strtok(NULL, " \t\n\r");
+            cur_line.value = (int) get_num_of_reg(token_buffer);
+        } else
             cur_line.value = 0;
         
         fwrite(&cur_line, sizeof(cur_line), 1, compiled_fp);
@@ -255,37 +283,19 @@ calcErr_s compile_file(char * user_file_compile, char * user_file_where) {
 void do_command(stack_t *stack, line_format cur_line) {
     sassert(stack, ERR_PTR_NULL);
     switch(cur_line.num_of_command) {
-        case PUSH:
-            do_push(stack, cur_line.value);
-            break;
-        case POP:
-            do_pop(stack);
-            break;
-        case ADD:
-            do_add(stack);
-            break;
-        case SUB:
-            do_sub(stack);
-            break;
-        case DIV:
-            do_div(stack);
-            break;
-        case MUL:
-            do_mul(stack);
-            break;
-        case QROOT:
-            do_qroot(stack);
-            break;
-        case OUT:
-            do_out(stack);
-            break;
-        case DUMP:
-            do_dump(stack);
-            break;
-        case UNDEF:
-            push_error(ERR_INCORRECT_COMMAND);
-        default:
-            push_error(ERR_INCORRECT_COMMAND);
+        case PUSH:  do_push(stack, cur_line.value);     break;
+        case POP:   do_pop(stack);                      break;
+        case ADD:   do_add(stack);                      break;
+        case SUB:   do_sub(stack);                      break;
+        case DIV:   do_div(stack);                      break;
+        case MUL:   do_mul(stack);                      break;
+        case QROOT: do_qroot(stack);                    break;
+        case OUT:   do_out(stack);                      break;
+        case DUMP:  do_dump(stack);                     break;
+        case PUSHR: do_pushr(stack, (int) cur_line.value);    break;
+        case POPR:  do_popr(stack,  (int) cur_line.value);    break;
+        case UNDEF: push_error(ERR_INCORRECT_COMMAND);
+        default:    push_error(ERR_INCORRECT_COMMAND);
     }
 }
 
@@ -308,6 +318,7 @@ void execute_file(char * user_file_execute) {
             break;
         }
         do_command(stack, cur_line);
+        
     }
 }
 
