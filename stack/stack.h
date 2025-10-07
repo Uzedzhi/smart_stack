@@ -7,15 +7,8 @@
 #include <limits.h>
 #include <math.h>
 
-#define RED       "\e[1;91m"
-#define WHITE     "\e[0;37m"
-#define YELLOW    "\e[1;93m"
-#define BYELLOW   "\e[0;33m"
-#define BLACK     "\e[0;30m"
-#define MAGENTA   "\e[0;35m"
-
-#define BEGIN     do {
-#define END       } while(0);
+#include "../usefullibs/sassert.h"
+#include "../helpers/helpers.h"
 
 #ifndef LEVEL_OF_CHECK
 #define LEVEL_OF_CHECK 3
@@ -26,17 +19,9 @@
 
 // main structs
 
-enum stackErr_t {
-    ERR_PTR_NULL = 0, ERR_STACK_NULL = 1, ERR_CAPACITY_INVALID = 2, ERR_SIZE_INVALID = 3, ERR_DIFFERENT_TYPE = 4, ERR_CANAREIKA_LEFT_CHANGE = 5, ERR_CANAREIKA_RIGHT_CHANGE = 6, ERR_OVERFLOW = 7, ERR_BUFFER_SIZE_INVALID = 8, ERR_HASH_CHANGED = 9, NO_ERROR = 10
-};
-
-struct stack_t;
-typedef double stack_var_t;
-typedef const char * const string;
-
 const size_t CANAREIKA     = 0xB333DEDDALL + 0xC0CAC0LL;
-
 const double FLT_ERR = 1e-6;
+struct stack_t;
 string err_strings[] = {"your ptr is null", "stack is null", "capacity is invalid number", "size is invalid number", "type of your argument is different from initialized", "something changed region to the left of an array", "something changed region to the right of an array", "some number overflew past limit", "buffer size should be more than 0!", "hash of your function unexpectedly changed, maybe you swapped or edited elements by yourself?", "no error"};
 string bad = "MEOW!!!";
 
@@ -51,22 +36,11 @@ string bad = "MEOW!!!";
 #define STACK_ERR_CHECK(stack, is_pt, ...) {                                    \
     int errors = stackErrcheck(stack, is_pt); \
     if (errors != 0) {\
-        stackDump(stack, errors, __VA_ARGS__);      \
+        stackDump(stack, 1, errors, __VA_ARGS__);      \
         stack->hash = get_stack_hash(*stack);\
         return errors;\
     }}
-#define sassert(condition, ERROR_CODE, ...) {                                                   \
-                        if (!(condition)){                                                      \
-                            fprintf(stderr, RED "-->ERROR:" WHITE " in file \"%s\"\n"           \
-                                                "             line %d\n"                        \
-                                                "EXPLANATION: %s\n",                            \
-                                                __FILE_NAME__, __LINE__, err_strings[ERROR_CODE]);  \
-                            fprintf(stderr, "MORE INFO: " __VA_ARGS__ );                        \
-                            putc('\n', stderr);                                                 \
-                            exit(ERROR_CODE);                                                   \
-                    }}
-#else 
-#define sassert(condition, ...) ((void)0)
+#else
 #define STACK_ERR_CHECK(stack, is_pt, ...) ;
 #endif // stack_err_sheck
 
@@ -118,7 +92,7 @@ string bad = "MEOW!!!";
         push_error(ERR_OVERFLOW, "realloc didnt make it... overflow with %zu bytes", stack->total_bytes);
 #define check_if_hash_correct(stack) {\
     if (get_stack_hash(*stack) != stack->hash)\
-        sassert(0, ERR_HASH_CHANGED, "FATAL ERROR, cant progress");\
+        sassert(0, ERR_HASH_CHANGED, "FATAL ERROR, cant progress. Your hash changed");\
 }
 #else
 #define check_if_hash_correct(stack) (void * )0
@@ -129,7 +103,7 @@ string bad = "MEOW!!!";
 
 //initialization
 #define init_stack(stk, buffer_size)\
-    sassert(buffer_size > 0, ERR_BUFFER_SIZE_INVALID);\
+    sassert(buffer_size > 0, ERR_BUFFER_SIZE_INVALID, "buffer size should be more than zero");\
     stack_t *stk = create_stack(#stk, buffer_size, __FILE__, __func__, __LINE__);
 
 //centralize
@@ -141,10 +115,6 @@ string bad = "MEOW!!!";
 // main pop
 #define stackPop(stack, value) \
     stackPop_internal(stack, value, __FILE__, __func__, __LINE__);
-
-// pop without value address
-#define stackPop_s(stack, value) \
-    stackPop_internal(stack, value, __FILE__, __func__, __LINE__, );
 
 // main push
 #define stackPush(stack, value) \
@@ -160,19 +130,18 @@ int stackErrcheck(stack_t *stack, bool is_pt);
 int stackPush_internal(stack_t *stack, stack_var_t value,
                               const char * file_name, const char * func_name, size_t line);
 int stackPop_internal(stack_t *stack, stack_var_t * value, const char * file_name, const char * func_name, size_t line);
-int get_num_of_reg(const char * reg);
-stackErr_t stackDtor_internal(stack_t *stack);
-stackErr_t stackDtor2_internal(stack_t **stack);
+asmErr_t stackDtor_internal(stack_t *stack);
+asmErr_t stackDtor2_internal(stack_t **stack);
+size_t get_size(stack_t *stack);
 void print_all_reasons(int errors);
 void print_part_of_var_info(stack_t *stack, size_t start, size_t end, size_t is_occupied);
 void print_whole_var_info(stack_t *stack);
 void print_bytes_left_canareika(stack_t *stack);
 void print_bytes_right_canareika(stack_t *stack);
-void stackDump(stack_t *stack, int errors,
+void stackDump(stack_t *stack, int is_end, int errors,
                const char * file_name, const char * func_name, size_t line);
 void reallocate_stack(stack_t*, double);
 bool check_if_overflow(size_t first, size_t second);
-bool is_error_active(int errors, stackErr_t error);
-bool inline is_same(double a, double b);
+bool is_error_active(int errors, asmErr_t error);
 
 #endif // mylib.h

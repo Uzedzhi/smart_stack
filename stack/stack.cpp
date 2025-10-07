@@ -67,6 +67,10 @@ stack_t * create_stack(string var_name, size_t buffer_size,
     return stk;
 }
 
+size_t get_size(stack_t *stack) {
+    return stack->size;
+}
+
 bool check_if_overflow(size_t first, size_t second) {
     return second > SIZE_MAX - first;
 }
@@ -91,9 +95,9 @@ void print_part_of_var_info(stack_t *stack, size_t start, size_t end, size_t is_
     size_t otstyp = strlen_format_string / 2;
     char occupied_symbol = (is_occupied) ? '*' : ' ';
     for (size_t i = start; i < end; i++) {
-        print_with_otstyp(otstyp, "    %c[%zu] = %lf ", occupied_symbol, i, stack->stack[i]);
+        print_with_otstyp(otstyp, "    %c[%zu] = %lf", occupied_symbol, i, stack->stack[i]);
         for (size_t j = 0; j < stack->var_size; j++) {
-            printf("[%02X]", *((unsigned char *)(stack->stack + i) + j));
+            printf(" [%02X]", *((unsigned char *)(stack->stack + i) + j));
         }
         printf(" %p", stack->stack + i);
         if (is_same(stack->stack[i], (stack_var_t) POISON))
@@ -124,15 +128,11 @@ void print_bytes_left_canareika(stack_t *stack) {
     }
 }
 
-bool inline is_same(double a, double b) {
-    return (abs(a - b) < FLT_ERR);
-}
-
-bool is_error_active(int errors, stackErr_t error) {
+bool is_error_active(int errors, asmErr_t error) {
     return (errors & (1 << error)) == 1 << error;
 }
 
-void stackDump(stack_t *stack, int errors, const char * file_name, const char * func_name, size_t line) {
+void stackDump(stack_t *stack, int is_end, int errors, const char * file_name, const char * func_name, size_t line) {
     sassert(stack,     ERR_PTR_NULL);
     sassert(file_name, ERR_PTR_NULL);
     sassert(func_name, ERR_PTR_NULL);
@@ -170,7 +170,8 @@ void stackDump(stack_t *stack, int errors, const char * file_name, const char * 
     print_canareika_bytes(stack);
     END
 
-    printf(RED "\n%sENDING DUMP%s\n\n" WHITE, format_string, format_string);
+    if (is_end)
+        printf(RED "\n%sENDING DUMP%s\n\n" WHITE, format_string, format_string);
 }
 
 void reallocate_stack(stack_t *stack, double multiplier) {
@@ -255,7 +256,7 @@ size_t get_stack_hash(stack_t stack) {
     return hash;
 }
 
-stackErr_t stackDtor_internal(stack_t *stack) {
+asmErr_t stackDtor_internal(stack_t *stack) {
     sassert(stack, ERR_PTR_NULL);
     sassert(get_stack_hash(*stack) == stack->hash, ERR_HASH_CHANGED);
 
@@ -266,7 +267,7 @@ stackErr_t stackDtor_internal(stack_t *stack) {
     return NO_ERROR;
 }
 
-stackErr_t stackDtor2_internal(stack_t **stack) {
+asmErr_t stackDtor2_internal(stack_t **stack) {
     free(*stack);
     *stack = NULL;
     return NO_ERROR;

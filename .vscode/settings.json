@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "type_traits": "cpp",
+        "vector": "cpp",
+        "charconv": "cpp",
+        "optional": "cpp",
+        "format": "cpp",
+        "ranges": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp",
+        "stdio.h": "c",
+        "cmath": "cpp"
+    }
+}
