@@ -4,8 +4,8 @@
 #include <math.h>
 #include <cstdint>
 
-#include "../stack/stackvars.hpp"
-#include "../stack/stack.hpp"
+#include "stackvars.hpp"
+#include "stack.hpp"
 #include "MyLibs/sassert.hpp"
 #include "MyLibs/helper_funcs.hpp"
 
@@ -43,7 +43,7 @@ stack_t *StackCtor() {
     stk->raw[stk->capacity + 1] = (stack_var_t) CANAREIKA;
 #endif
 
-#if LEVEL_OF_CHECK >= _STK_HASH_CHECK
+#if _STK_LEVEL_OF_CHECK >= _STK_HASH_CHECK
     stk->hash = get_stack_hash(*stk);
 #endif
     return stk;

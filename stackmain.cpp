@@ -7,7 +7,7 @@ int main(void) {
 
     char buf[256] = {};
     for (size_t i = 0; i < 100; i++) {
-        snprintf(buf, 255, "hi %d", i);
+        snprintf(buf, 255, "push number %d", i);
         push(stack, buf);
         printf("pushed %s\n", buf);
     }
@@ -15,7 +15,7 @@ int main(void) {
     stackDump(stack);
 
     char * ptr;
-    for (size_t i = 0; i < 100; i++) {
+    for (size_t i = 0; i < 97; i++) {
         pop(stack, &ptr);
         printf("value: %s\n", ptr);
         free(ptr);
@@ -29,7 +29,7 @@ int main(void) {
 
     double value = 0;
     for (size_t i = 0; i < 100; i++) {
-        push(stack, (double) i + 0.5);
+        push(stack, (double) i + 0.6);
         printf("pushed %lf\n", value);
     }
 
@@ -39,6 +39,8 @@ int main(void) {
         pop(stack, &value);
         printf("value: %lf\n", value);
     }
+        pop(stack, &value);
+        pop(stack, &value);
     stackDump(stack);
 
     stackDtor(stack);
